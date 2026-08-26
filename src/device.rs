@@ -1,12 +1,12 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use hidapi::{HidApi, HidDevice, HidError};
 use image::DynamicImage;
 
-use crate::images::{convert_image, WriteImageParameters};
+use crate::images::{convert_image, convert_mad_dog_gk150w_logo, WriteImageParameters};
 use crate::info::Kind;
 use crate::protocol::{codes, extract_string, request, AjazzProtocolParser, AjazzRequestBuilder};
 use crate::{convert_image_with_format, AjazzError, AjazzInput, DeviceState, Event};
@@ -278,6 +278,10 @@ impl Ajazz {
             return Err(AjazzError::UnsupportedOperation);
         }
 
+        if self.kind == Kind::MadDogGk150W {
+            return self.set_logo_image_v3(image);
+        }
+
         let image_data = convert_image_with_format(self.kind.logo_image_format(), image)?;
         self.hid
             .write(self.kind.logo_image_packet(&image_data).as_slice())?;
@@ -286,6 +290,92 @@ impl Ajazz {
         self.assert_write_complete()?;
 
         Ok(())
+    }
+
+    /// Boot-logo write for the Mad Dog GK150W (V3 protocol).
+    ///
+    /// Replicates the official Stream Panel app's USB traffic exactly, including
+    /// its timing (verified against a USBPcap capture + the app's PDB symbols):
+    ///
+    /// 1. `LOG` announce with the exact JPEG byte count,
+    /// 2. ~3 s pause while the device erases the logo flash sector,
+    /// 3. the JPEG in 1024-byte chunks (fast blast),
+    /// 4. wait for the device's `ACK .. OK` (~3 s) — this ACK arrives *before*
+    ///    `STP` and signals that the data was committed to flash,
+    /// 5. `STP` to finish.
+    ///
+    /// Sending `STP` immediately after the data (as the SDK used to) makes the
+    /// device silently drop the write and keep the old logo — the reported
+    /// "always the same wallpaper" symptom.
+    fn set_logo_image_v3(&self, image: DynamicImage) -> Result<(), AjazzError> {
+        let image_data = convert_mad_dog_gk150w_logo(image)?;
+
+        let mut announce = Vec::with_capacity(1025);
+        announce.extend_from_slice(codes::REQUEST_HEADER);
+        announce.extend_from_slice(codes::REQUEST_CMD_LOGO_IMAGE_V3);
+        announce.extend_from_slice(&(image_data.len() as u32).to_be_bytes());
+        announce.push(0x01);
+        announce.resize(1025, 0x00);
+        self.hid.write(announce.as_slice())?;
+
+        // Wait out the flash erase while draining the device's IN reports
+        // (the official app polls every few ms for ~3 s here).
+        self.drain_input(Duration::from_millis(3000), false)?;
+
+        for chunk in image_data.chunks(1024) {
+            let mut report = Vec::with_capacity(1025);
+            report.push(0x00);
+            report.extend_from_slice(chunk);
+            report.resize(1025, 0x00);
+            self.hid.write(report.as_slice())?;
+        }
+
+        // The device writes the buffered JPEG to flash and then answers with
+        // `ACK 00 00 OK` BEFORE the host sends STP.
+        if !self.drain_input(Duration::from_millis(6000), true)? {
+            return Err(AjazzError::NoAck);
+        }
+
+        let mut flush = Vec::with_capacity(1025);
+        flush.extend_from_slice(codes::REQUEST_HEADER);
+        flush.extend_from_slice(codes::REQUEST_CMD_FLUSH);
+        flush.resize(1025, 0x00);
+        self.hid.write(flush.as_slice())?;
+
+        // The commit signal was the pre-STP ACK; tolerate a missing post-STP one.
+        self.drain_input(Duration::from_millis(2000), true)?;
+
+        Ok(())
+    }
+
+    /// Drains IN reports for up to `timeout`. When `stop_on_ack` is set it
+    /// returns early once an `ACK .. OK` report has been read. Returns whether
+    /// an ACK was observed.
+    fn drain_input(&self, timeout: Duration, stop_on_ack: bool) -> Result<bool, AjazzError> {
+        self.hid.set_blocking_mode(true)?;
+
+        let deadline = Instant::now() + timeout;
+        let mut buf = vec![0u8; 512];
+        let mut acked = false;
+
+        while Instant::now() < deadline {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let timeout_ms = remaining.as_millis().min(100) as i32;
+            match self.hid.read_timeout(buf.as_mut_slice(), timeout_ms) {
+                Ok(0) => continue,
+                Ok(n) => {
+                    if buf[..n].starts_with(codes::RESPONSE_ACK_OK) {
+                        acked = true;
+                        if stop_on_ack {
+                            break;
+                        }
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        Ok(acked)
     }
 
     /// Initializes the device

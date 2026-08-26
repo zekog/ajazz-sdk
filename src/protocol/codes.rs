@@ -5,9 +5,13 @@ pub const FEATURE_REPORT_ID_VERSION: u8 = 0x01;
 pub const VENDOR_ID_MIRABOX_V1: u16 = 0x5548;
 /// A Mirabox v2 vendor ID
 pub const VENDOR_ID_MIRABOX_V2: u16 = 0x0300;
+/// Mad Dog vendor ID (rebadged Ajazz devices)
+pub const VENDOR_ID_MAD_DOG: u16 = 0x1200;
 
 /// Product ID of Ajazz AKP153
 pub const PID_AJAZZ_AKP153: u16 = 0x6674;
+/// Product ID of Mad Dog GK150W
+pub const PID_MAD_DOG_GK150W: u16 = 0x2014;
 /// Product ID of Ajazz AKP815
 pub const PID_AJAZZ_AKP815: u16 = 0x6672;
 /// Product ID of Ajazz AKP153E
@@ -87,6 +91,9 @@ pub const REQUEST_CMD_IMAGE_ANNOUNCE: &[u8] = &[0x42, 0x41, 0x54, 0x00, 0x00];
 pub const REQUEST_CMD_LOGO_IMAGE_V1: &[u8] = &[0x4c, 0x4f, 0x47, 0x00, 0x12, 0xc3, 0xc0, 0x01];
 /// Request for logo image command
 pub const REQUEST_CMD_LOGO_IMAGE_V2: &[u8] = &[0x4c, 0x4f, 0x47, 0x00, 0x00];
+/// Request for logo image command (V3 protocol, Mad Dog GK150W):
+/// followed by a 4-byte big-endian JPEG size and a 0x01 flag byte
+pub const REQUEST_CMD_LOGO_IMAGE_V3: &[u8] = &[0x4c, 0x4f, 0x47];
 
 /// Response for ACK packet
 pub const RESPONSE_ACK_OK: &[u8] = &[0x41, 0x43, 0x4b, 0x00, 0x00, 0x4f, 0x4b];

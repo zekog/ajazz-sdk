@@ -7,7 +7,7 @@ use crate::{
 pub const fn is_mirabox_vendor(vendor: u16) -> bool {
     matches!(
         vendor,
-        codes::VENDOR_ID_MIRABOX_V1 | codes::VENDOR_ID_MIRABOX_V2
+        codes::VENDOR_ID_MIRABOX_V1 | codes::VENDOR_ID_MIRABOX_V2 | codes::VENDOR_ID_MAD_DOG
     )
 }
 
@@ -30,6 +30,8 @@ pub enum Kind {
     Akp03R,
     /// Ajazz AKP03R rev 2
     Akp03RRev2,
+    /// Mad Dog GK150W (rebadged Ajazz AKP153)
+    MadDogGk150W,
 }
 
 impl Kind {
@@ -52,6 +54,11 @@ impl Kind {
                 _ => None,
             },
 
+            codes::VENDOR_ID_MAD_DOG => match pid {
+                codes::PID_MAD_DOG_GK150W => Some(Kind::MadDogGk150W),
+                _ => None,
+            },
+
             _ => None,
         }
     }
@@ -67,6 +74,7 @@ impl Kind {
             Kind::Akp03E => codes::PID_AJAZZ_AKP03E,
             Kind::Akp03R => codes::PID_AJAZZ_AKP03R,
             Kind::Akp03RRev2 => codes::PID_AJAZZ_AKP03R_REV2,
+            Kind::MadDogGk150W => codes::PID_MAD_DOG_GK150W,
         }
     }
 
@@ -81,13 +89,14 @@ impl Kind {
             Kind::Akp03E => codes::VENDOR_ID_MIRABOX_V2,
             Kind::Akp03R => codes::VENDOR_ID_MIRABOX_V2,
             Kind::Akp03RRev2 => codes::VENDOR_ID_MIRABOX_V2,
+            Kind::MadDogGk150W => codes::VENDOR_ID_MAD_DOG,
         }
     }
 
     /// Amount of keys the device has
     pub const fn key_count(&self) -> u8 {
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => 15 + 3,
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => 15 + 3,
             Kind::Akp815 => 15,
             Kind::Akp03 | Kind::Akp03E | Kind::Akp03R | Kind::Akp03RRev2 => 6 + 3,
         }
@@ -104,7 +113,7 @@ impl Kind {
     /// Amount of button rows the device has
     pub const fn row_count(&self) -> u8 {
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => 3,
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => 3,
             Kind::Akp815 => 5,
             Kind::Akp03 | Kind::Akp03E | Kind::Akp03R | Kind::Akp03RRev2 => 2,
         }
@@ -113,7 +122,7 @@ impl Kind {
     /// Amount of button columns the device has
     pub const fn column_count(&self) -> u8 {
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => 6,
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => 6,
             Kind::Akp815 => 3,
             Kind::Akp03 | Kind::Akp03E | Kind::Akp03R | Kind::Akp03RRev2 => 3,
         }
@@ -130,7 +139,9 @@ impl Kind {
     /// Size of the LCD strip on the device
     pub const fn lcd_strip_size(&self) -> Option<(usize, usize)> {
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => Some((854, 480)),
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => {
+                Some((854, 480))
+            }
             Kind::Akp815 => Some((800, 480)),
             _ => None,
         }
@@ -159,7 +170,7 @@ impl Kind {
                 mirror: ImageMirroring::None,
             },
 
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => ImageFormat {
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => ImageFormat {
                 mode: ImageMode::JPEG,
                 size: (854, 480),
                 rotation: ImageRotation::Rot0,
@@ -178,7 +189,7 @@ impl Kind {
     /// Image format used by the device kind
     pub const fn key_image_format(&self) -> ImageFormat {
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => ImageFormat {
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => ImageFormat {
                 mode: ImageMode::JPEG,
                 size: (85, 85),
                 rotation: ImageRotation::Rot90,
@@ -212,7 +223,7 @@ impl Kind {
     pub const fn is_v1_api(&self) -> bool {
         matches!(
             self,
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::Akp815
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W | Kind::Akp815
         )
     }
 

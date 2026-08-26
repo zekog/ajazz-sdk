@@ -108,6 +108,52 @@ pub fn convert_image_with_format(
     }
 }
 
+/// Maximum boot-logo JPEG size accepted by the Mad Dog GK150W firmware.
+///
+/// The official app's `SDSetting::changedLogo` rejects larger payloads
+/// (`cmp qword [rax+4], 0x7f800`): the device does not ACK the write and the
+/// old logo stays in flash.
+pub const MAD_DOG_GK150W_LOGO_MAX_BYTES: usize = 0x7f800;
+
+/// Converts an image to the boot logo format of the Mad Dog GK150W.
+///
+/// Matches the official Stream Panel app byte-for-byte in structure:
+/// the 854x480 screen image is rotated 90° counter-clockwise (480x854)
+/// and encoded as a baseline JPEG. The bootloader expects exactly this
+/// orientation.
+///
+/// The firmware rejects JPEGs larger than [`MAD_DOG_GK150W_LOGO_MAX_BYTES`]
+/// (the official app shows an error dialog in that case), so the encoder
+/// steps quality down from 100 in increments of 10 until the payload fits.
+pub fn convert_mad_dog_gk150w_logo(image: DynamicImage) -> Result<Vec<u8>, ImageError> {
+    let image = image
+        .resize_exact(854, 480, FilterType::Triangle)
+        .rotate270()
+        .into_rgb8();
+
+    let mut quality = 100u8;
+    loop {
+        let mut buf = Vec::new();
+        let mut encoder = JpegEncoder::new_with_quality(&mut buf, quality);
+        encoder.encode(&image, 480, 854, ColorType::Rgb8.into())?;
+
+        if buf.len() <= MAD_DOG_GK150W_LOGO_MAX_BYTES || quality <= 60 {
+            if buf.len() > MAD_DOG_GK150W_LOGO_MAX_BYTES {
+                return Err(ImageError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "boot logo is {} bytes even at quality 60; the device accepts at most {MAD_DOG_GK150W_LOGO_MAX_BYTES}",
+                        buf.len()
+                    ),
+                )));
+            }
+            return Ok(buf);
+        }
+
+        quality -= 10;
+    }
+}
+
 /// Converts image into image data depending on provided kind of device, can be safely ran inside [multi_thread](tokio::runtime::Builder::new_multi_thread) runtime
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]

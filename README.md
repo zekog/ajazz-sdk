@@ -18,6 +18,7 @@ cargo add ajazz-sdk
 - Ajazz AKP03E
 - Ajazz AKP03R
 - Ajazz AKP03RV2
+- Mad Dog GK150W (rebadged Ajazz AKP153)
 
 ## Features
 

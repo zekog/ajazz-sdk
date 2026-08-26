@@ -20,8 +20,8 @@ mod hid;
 pub use info::Kind;
 pub use device::{Ajazz, DeviceStateReader};
 pub use images::{
-    convert_image, convert_image_with_format, ImageFormat, ImageMode, ImageMirroring,
-    ImageRect, ImageRotation,
+    convert_image, convert_image_with_format, convert_mad_dog_gk150w_logo, ImageFormat,
+    ImageMode, ImageMirroring, ImageRect, ImageRotation, MAD_DOG_GK150W_LOGO_MAX_BYTES,
 };
 pub use hid::{new_hidapi, refresh_device_list, list_devices};
 

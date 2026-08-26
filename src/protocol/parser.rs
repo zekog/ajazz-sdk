@@ -62,7 +62,7 @@ impl AjazzProtocolParser for Kind {
         }
 
         match self {
-            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => {
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R | Kind::MadDogGk150W => {
                 if i < self.key_count() {
                     Some(
                         [4, 10, 16, 3, 9, 15, 2, 8, 14, 1, 7, 13, 0, 6, 12, 5, 11, 17]

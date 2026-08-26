@@ -13,3 +13,13 @@
 .DS_Store
 
 .cursor/
+
+# Reverse-engineering artifacts — proprietary official app binaries and
+# personal files, not part of the SDK (too large and not our code)
+/Stream Panel GK150/
+/Stream Panel GK150.zip
+/othcj3.pcapng
+/screen_last.png
+/y1m-rLqakvGfZO8E.mp4
+/zdj.jpg
+/f886c62c62ef8952400755706c2b674b_upscaled.jpg
